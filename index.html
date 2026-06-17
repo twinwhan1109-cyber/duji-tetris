@@ -191,13 +191,14 @@ html, body {
 }
 .cbtn:active { background: var(--accent); color: #fff; transform: scale(.9); border-color: var(--accent); }
 /* 왼쪽: 회전 */
-#btn-rotate { width: 68px; height: 68px; font-size: 28px; }
+#btn-rotate { width: 68px; height: 68px; font-size: 28px; margin-left: 20px; }
 /* 가운데: 드롭 */
 #btn-drop {
-  width: 46px; height: 46px; font-size: 16px;
+  width: 66px; height: 66px; font-size: 20px;
   background: var(--accent); border-color: var(--accent);
   color: #fff; border-radius: 50%;
   flex-direction: column; gap: 0; line-height: 1;
+  margin-left: 28px;
 }
 #btn-drop span { font-size: 8px; font-weight: 700; }
 #btn-drop:active { background: var(--accent2); transform: scale(.9); }
@@ -519,9 +520,9 @@ const PIECES = [
 // ── 아이템 ──
 const ITEMS = [
   { id:'water', icon:'💧', name:'물풍선', desc:'맨 아래 줄 삭제!', prob:.20 },
-  { id:'clock', icon:'⏰', name:'시계',   desc:'8초간 슬로우~',   prob:.10 },
-  { id:'lego',  icon:'🧱', name:'레고랜드',desc:'아래 절반 박살!', prob:.05 },
-  { id:'rage',  icon:'🔥', name:'두지의 분노',desc:'전체 박살!!', prob:.03 },
+  { id:'clock', icon:'⏰', name:'시계',   desc:'8초간 슬로우~',   prob:.13 },
+  { id:'lego',  icon:'🧱', name:'레고랜드',desc:'아래 절반 박살!', prob:.08 },
+  { id:'rage',  icon:'🔥', name:'두지의 분노',desc:'전체 박살!!', prob:.06 },
 ];
 
 // ── 두지 반응 ──
