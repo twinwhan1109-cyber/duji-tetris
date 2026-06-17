@@ -7,13 +7,13 @@
 <style>
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 :root {
-  --bg: #0d0d1a;
-  --panel: #161628;
-  --accent: #ff4d6d;
-  --accent2: #ffd166;
-  --border: #2a2a45;
-  --text: #f0f0ff;
-  --muted: #888;
+  --bg: #f2ede3;
+  --panel: #e8e2d6;
+  --accent: #2ec4a9;
+  --accent2: #1a9c84;
+  --border: #c9c2b4;
+  --text: #1a7a6a;
+  --muted: #8a9e98;
 }
 html, body {
   width: 100%; height: 100%;
@@ -123,7 +123,7 @@ html, body {
 .item-label { font-size: 8px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
 .islot {
   width: 48px; height: 48px;
-  background: #1a1a30;
+  background: #fff;
   border: 1.5px solid var(--border);
   border-radius: 10px;
   display: flex; align-items: center; justify-content: center;
@@ -149,7 +149,7 @@ html, body {
   position: relative;
   overflow: hidden;
 }
-#game-canvas { display: block; border: 2px solid var(--border); background: #06060f; }
+#game-canvas { display: block; border: 2px solid var(--border); background: #faf7f2; }
 
 /* 넥스트 패널 */
 #next-panel {
@@ -164,43 +164,48 @@ html, body {
   flex-shrink: 0;
 }
 .next-label { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
-#next-canvas { background: #1a1a30; border-radius: 6px; border: 1px solid var(--border); }
+#next-canvas { background: #fff; border-radius: 6px; border: 1px solid var(--border); }
 
 /* ── 컨트롤 ── */
 #controls {
   background: var(--panel);
   border-top: 1px solid var(--border);
   flex-shrink: 0;
-  padding: 10px 12px 14px;
-}
-.ctrl-row {
+  padding: 10px 16px 18px;
   display: flex;
-  justify-content: center;
-  gap: 10px;
-  margin-bottom: 8px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
-.ctrl-row:last-child { margin-bottom: 0; }
 .cbtn {
-  background: #1a1a30;
+  background: #fff;
   border: 1.5px solid var(--border);
-  border-radius: 12px;
+  border-radius: 14px;
   color: var(--text);
-  font-size: 20px;
-  width: 56px; height: 52px;
+  font-size: 22px;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer;
   transition: background .1s, transform .1s;
   -webkit-tap-highlight-color: transparent;
   flex-shrink: 0;
 }
-.cbtn:active, .cbtn.pressed { background: var(--accent); transform: scale(.92); border-color: var(--accent); }
+.cbtn:active { background: var(--accent); color: #fff; transform: scale(.9); border-color: var(--accent); }
+/* 왼쪽: 회전 */
+#btn-rotate { width: 68px; height: 68px; font-size: 28px; }
+/* 가운데: 드롭 */
 #btn-drop {
-  flex: 1; font-size: 14px; font-weight: 700;
+  width: 46px; height: 46px; font-size: 16px;
   background: var(--accent); border-color: var(--accent);
-  color: #fff; height: 48px; border-radius: 12px;
-  letter-spacing: .5px;
+  color: #fff; border-radius: 50%;
+  flex-direction: column; gap: 0; line-height: 1;
 }
-#btn-drop:active { background: #cc2244; transform: scale(.96); }
+#btn-drop span { font-size: 8px; font-weight: 700; }
+#btn-drop:active { background: var(--accent2); transform: scale(.9); }
+/* 오른쪽: 삼각 방향 배열 */
+#arrow-cluster { display: flex; flex-direction: column; gap: 6px; align-items: center; }
+#arrow-top { display: flex; gap: 6px; }
+#btn-left, #btn-right { width: 56px; height: 52px; font-size: 22px; }
+#btn-down { width: 56px; height: 44px; font-size: 20px; }
 
 /* ── 오버레이 공통 ── */
 .overlay {
@@ -208,7 +213,7 @@ html, body {
   position: absolute;
   inset: 0;
   z-index: 20;
-  background: rgba(6,6,15,.92);
+  background: rgba(242,237,227,.95);
   flex-direction: column;
   align-items: center;
   justify-content: center;
@@ -262,7 +267,7 @@ html, body {
   display: none;
   position: absolute;
   inset: 0; z-index: 25;
-  background: rgba(6,6,15,.88);
+  background: rgba(242,237,227,.92);
   flex-direction: column;
   align-items: center;
   justify-content: center;
@@ -270,6 +275,83 @@ html, body {
 }
 #pause-overlay.show { display: flex; }
 #pause-overlay h2 { font-size: 26px; }
+
+/* ── 아이템 애니메이션 레이어 ── */
+#anim-layer {
+  position: absolute; inset: 0;
+  pointer-events: none;
+  z-index: 15;
+  overflow: hidden;
+}
+/* 물풍선 */
+@keyframes waterDrop {
+  0%   { transform: translateY(-20px) scale(.5); opacity: 1; }
+  80%  { opacity: 1; }
+  100% { transform: translateY(110%) scale(1.2); opacity: 0; }
+}
+@keyframes splash {
+  0%   { transform: translate(-50%,-50%) scale(0); opacity: 1; }
+  100% { transform: translate(-50%,-50%) scale(3); opacity: 0; }
+}
+.water-drop {
+  position: absolute; font-size: 22px; animation: waterDrop .7s ease-in forwards;
+}
+.splash-ring {
+  position: absolute; width: 60px; height: 60px;
+  border: 4px solid #4fc3f7; border-radius: 50%;
+  top: 50%; left: 50%;
+  animation: splash .6s ease-out forwards;
+}
+/* 시계 */
+@keyframes clockRing {
+  0%,100% { transform: translate(-50%,-50%) rotate(0) scale(1); }
+  10%      { transform: translate(-50%,-50%) rotate(-18deg) scale(1.15); }
+  30%      { transform: translate(-50%,-50%) rotate(18deg) scale(1.2); }
+  50%      { transform: translate(-50%,-50%) rotate(-14deg) scale(1.15); }
+  70%      { transform: translate(-50%,-50%) rotate(10deg) scale(1.1); }
+  90%      { transform: translate(-50%,-50%) rotate(-6deg) scale(1.05); }
+}
+@keyframes clockFade {
+  0%   { opacity: 1; transform: translate(-50%,-50%) scale(1.2); }
+  100% { opacity: 0; transform: translate(-50%,-50%) scale(.5); }
+}
+#clock-anim {
+  position: absolute; top: 40%; left: 50%;
+  font-size: 72px; line-height: 1;
+  transform: translate(-50%,-50%);
+  animation: clockRing .7s ease-in-out, clockFade .4s .7s forwards;
+}
+/* 레고랜드 불 */
+@keyframes fireRise {
+  0%   { transform: translateY(0) scale(1); opacity: 1; }
+  60%  { opacity: 1; }
+  100% { transform: translateY(-60px) scale(.4); opacity: 0; }
+}
+.fire-particle {
+  position: absolute; font-size: 28px;
+  animation: fireRise .8s ease-out forwards;
+}
+/* 두지 분노 펀치 */
+@keyframes dujiPunch {
+  0%   { transform: translateX(-120%) rotate(-10deg) scale(1.2); opacity: 1; }
+  60%  { transform: translateX(10%) rotate(5deg) scale(1.4); opacity: 1; }
+  80%  { transform: translateX(20%) rotate(0deg) scale(1.3); opacity: 1; }
+  100% { transform: translateX(150%) rotate(15deg) scale(.8); opacity: 0; }
+}
+#duji-punch {
+  position: absolute; top: 20%; left: 0;
+  width: 90px; height: 120px;
+  animation: dujiPunch .9s cubic-bezier(.25,.46,.45,.94) forwards;
+}
+@keyframes blockShatter {
+  0%   { opacity: 1; transform: translate(0,0) rotate(0) scale(1); }
+  100% { opacity: 0; transform: translate(var(--dx),var(--dy)) rotate(var(--rot)) scale(.2); }
+}
+.shard {
+  position: absolute;
+  border-radius: 3px;
+  animation: blockShatter .6s ease-out forwards;
+}
 </style>
 </head>
 <body>
@@ -330,6 +412,7 @@ html, body {
     <!-- 캔버스 -->
     <div id="canvas-wrap">
       <canvas id="game-canvas"></canvas>
+      <div id="anim-layer"></div>
       <div id="item-popup"><div id="item-popup-icon"></div><p id="item-popup-name"></p></div>
 
       <!-- 시작 오버레이 -->
@@ -389,15 +472,14 @@ html, body {
 
   <!-- 컨트롤 -->
   <div id="controls">
-    <div class="ctrl-row">
-      <div class="cbtn" id="btn-rotate">↻</div>
-      <button id="btn-drop" class="cbtn">⚡ 한방에 DROP!</button>
-      <div class="cbtn" id="btn-hold">📦</div>
-    </div>
-    <div class="ctrl-row">
-      <div class="cbtn" id="btn-left">◀</div>
+    <div class="cbtn" id="btn-rotate">↻</div>
+    <button id="btn-drop" class="cbtn">⚡<span>DROP</span></button>
+    <div id="arrow-cluster">
+      <div id="arrow-top">
+        <div class="cbtn" id="btn-left">◀</div>
+        <div class="cbtn" id="btn-right">▶</div>
+      </div>
       <div class="cbtn" id="btn-down">▼</div>
-      <div class="cbtn" id="btn-right">▶</div>
     </div>
   </div>
 
@@ -573,21 +655,104 @@ function addItem(item) {
 function useItem(i) {
   const item=inventory[i]; if(!item)return;
   inventory[i]=null; updateItemUI();
-  if(item.id==='water'){
-    for(let r=ROWS-1;r>=0;r--){if(board[r].some(c=>c!==0)){board.splice(r,1);board.unshift(Array(COLS).fill(0));break;}}
-    showBubble('💧 한 줄 날렸다!'); animDuji('explode');
-  } else if(item.id==='clock'){
-    slowMode=true; dropInterval=1400;
-    showBubble('⏰ 느리게~ 느리게~'); animDuji('sigh');
-    setTimeout(()=>{slowMode=false;dropInterval=Math.max(100,800-(level-1)*70);},8000);
-  } else if(item.id==='lego'){
-    for(let r=Math.floor(ROWS/2);r<ROWS;r++) board[r]=Array(COLS).fill(0);
-    showBubble('🧱 레고랜드 도움!'); animDuji('bomb');
-  } else if(item.id==='rage'){
-    board=Array.from({length:ROWS},()=>Array(COLS).fill(0));
-    showBubble('🔥 두지의 분노!!'); animDuji('fire');
+  playItemAnim(item.id, ()=>{
+    if(item.id==='water'){
+      for(let r=ROWS-1;r>=0;r--){if(board[r].some(c=>c!==0)){board.splice(r,1);board.unshift(Array(COLS).fill(0));break;}}
+      showBubble('💧 한 줄 날렸다!'); animDuji('explode');
+    } else if(item.id==='clock'){
+      slowMode=true; dropInterval=1400;
+      showBubble('⏰ 느리게~ 느리게~'); animDuji('sigh');
+      setTimeout(()=>{slowMode=false;dropInterval=Math.max(100,800-(level-1)*70);},8000);
+    } else if(item.id==='lego'){
+      for(let r=Math.floor(ROWS/2);r<ROWS;r++) board[r]=Array(COLS).fill(0);
+      showBubble('🧱 레고랜드 도움!'); animDuji('bomb');
+    } else if(item.id==='rage'){
+      board=Array.from({length:ROWS},()=>Array(COLS).fill(0));
+      showBubble('🔥 두지의 분노!!'); animDuji('fire');
+    }
+    updateHUD(); draw();
+  });
+}
+
+function playItemAnim(id, cb) {
+  const layer = document.getElementById('anim-layer');
+  const cw = canvas.offsetWidth, ch = canvas.offsetHeight;
+  const cl = canvas.offsetLeft, ct = canvas.offsetTop;
+  layer.innerHTML = '';
+
+  if(id==='water') {
+    // 물방울 여러 개 낙하
+    for(let i=0;i<14;i++){
+      const d=document.createElement('div');
+      d.className='water-drop'; d.textContent='💧';
+      d.style.left=(cl + 10 + Math.random()*(cw-20))+'px';
+      d.style.top=ct+'px';
+      d.style.animationDelay=(Math.random()*.35)+'s';
+      d.style.fontSize=(16+Math.random()*14)+'px';
+      layer.appendChild(d);
+    }
+    // 중앙 splash 링
+    for(let i=0;i<3;i++){
+      const s=document.createElement('div');
+      s.className='splash-ring';
+      s.style.left=(cl+cw/2)+'px'; s.style.top=(ct+ch*.6)+'px';
+      s.style.animationDelay=(i*.12)+'s';
+      layer.appendChild(s);
+    }
+    setTimeout(()=>{layer.innerHTML='';cb();},900);
+
+  } else if(id==='clock') {
+    const d=document.createElement('div');
+    d.id='clock-anim'; d.textContent='⏰';
+    d.style.left=(cl+cw/2)+'px'; d.style.top=(ct+ch*.4)+'px';
+    layer.appendChild(d);
+    setTimeout(()=>{layer.innerHTML='';cb();},1200);
+
+  } else if(id==='lego') {
+    // 아래 절반에 불 파티클
+    const half=Math.floor(ROWS/2);
+    const fireEmoji=['🔥','🔥','🔥','💥','🌟'];
+    for(let i=0;i<28;i++){
+      const f=document.createElement('div');
+      f.className='fire-particle';
+      f.textContent=fireEmoji[Math.floor(Math.random()*fireEmoji.length)];
+      f.style.left=(cl+Math.random()*cw)+'px';
+      f.style.top=(ct+half*BS+Math.random()*(ch-half*BS))+'px';
+      f.style.animationDelay=(Math.random()*.6)+'s';
+      f.style.fontSize=(20+Math.random()*16)+'px';
+      layer.appendChild(f);
+    }
+    setTimeout(()=>{layer.innerHTML='';cb();},1100);
+
+  } else if(id==='rage') {
+    // 보드의 블록들을 파편으로 표현
+    for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) {
+      if(!board[r][c]) continue;
+      const s=document.createElement('div');
+      s.className='shard';
+      s.style.left=(cl+c*BS+2)+'px';
+      s.style.top=(ct+r*BS+2)+'px';
+      s.style.width=(BS-4)+'px'; s.style.height=(BS-4)+'px';
+      s.style.background=board[r][c];
+      const angle=Math.random()*360;
+      const dist=40+Math.random()*80;
+      s.style.setProperty('--dx',(Math.cos(angle)*dist)+'px');
+      s.style.setProperty('--dy',(Math.sin(angle)*dist)+'px');
+      s.style.setProperty('--rot',(Math.random()*720-360)+'deg');
+      s.style.animationDelay=(Math.random()*.15)+'s';
+      layer.appendChild(s);
+    }
+    // 두지 SVG 펀치
+    const punch=document.createElement('div');
+    punch.id='duji-punch';
+    punch.style.left=cl+'px'; punch.style.top=(ct+ch*.15)+'px';
+    punch.innerHTML=document.getElementById('duji-svg').outerHTML;
+    layer.appendChild(punch);
+    setTimeout(()=>{layer.innerHTML='';cb();},1000);
+
+  } else {
+    cb();
   }
-  updateHUD(); draw();
 }
 
 // ── 게임오버 ──
@@ -623,12 +788,6 @@ function draw() {
   // board
   for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) if(board[r][c]) legoBlock(ctx,c*BS,r*BS,BS,board[r][c]);
   if(!current)return;
-  // ghost
-  let gy=current.y;
-  while(!hits(current,0,gy-current.y+1)) gy++;
-  ctx.globalAlpha=.18;
-  current.shape.forEach((row,r)=>row.forEach((v,c)=>{if(v)legoBlock(ctx,(current.x+c)*BS,(gy+r)*BS,BS,current.color);}));
-  ctx.globalAlpha=1;
   // current
   current.shape.forEach((row,r)=>row.forEach((v,c)=>{if(v)legoBlock(ctx,(current.x+c)*BS,(current.y+r)*BS,BS,current.color);}));
 }
@@ -734,7 +893,6 @@ bindBtn('btn-right',mRight);
 bindBtn('btn-down',mDown);
 bindBtn('btn-rotate',mRotate);
 bindBtn('btn-drop',mDrop);
-bindBtn('btn-hold',mHold);
 
 // 스와이프
 let tx=0,ty=0;
