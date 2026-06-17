@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>두지 스트레스 박살 테트리스</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg: #0d0d1a;
+  --panel: #161628;
+  --accent: #ff4d6d;
+  --accent2: #ffd166;
+  --border: #2a2a45;
+  --text: #f0f0ff;
+  --muted: #888;
+}
+html, body {
+  width: 100%; height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', Arial, sans-serif;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+}
+
+/* ── 전체 레이아웃 ── */
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+/* ── 상단 HUD ── */
+#hud {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  gap: 6px;
+}
+.hud-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+}
+.hud-label { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+.hud-val   { font-size: 18px; font-weight: 700; color: var(--accent2); line-height: 1.2; }
+#hud-pause {
+  background: none; border: 1px solid var(--border);
+  color: var(--text); border-radius: 8px;
+  padding: 4px 10px; font-size: 18px; cursor: pointer;
+  transition: background .15s;
+}
+#hud-pause:active { background: var(--border); }
+
+/* ── 게임 영역 ── */
+#game-area {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+/* 두지 + 아이템 사이드바 */
+#sidebar {
+  width: 76px;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  flex-shrink: 0;
+}
+#duji-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 8px 4px 4px;
+  position: relative;
+}
+#duji-bubble {
+  position: absolute;
+  top: 6px; left: 2px; right: 2px;
+  background: #fff;
+  color: #111;
+  border: 2px solid #333;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+  padding: 4px 5px;
+  line-height: 1.3;
+  opacity: 0;
+  transition: opacity .3s;
+  z-index: 5;
+}
+#duji-bubble::after {
+  content:''; position: absolute;
+  bottom: -8px; left: 50%; transform: translateX(-50%);
+  border: 4px solid transparent;
+  border-top-color: #333;
+}
+#duji-bubble.show { opacity: 1; }
+#duji-svg { width: 60px; height: 80px; transition: transform .1s; }
+
+#item-panel {
+  border-top: 1px solid var(--border);
+  padding: 6px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  align-items: center;
+}
+.item-label { font-size: 8px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+.islot {
+  width: 48px; height: 48px;
+  background: #1a1a30;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+  cursor: pointer;
+  transition: border-color .15s, transform .1s;
+  position: relative;
+}
+.islot.active { border-color: var(--accent2); }
+.islot:active { transform: scale(.9); }
+.islot .itip {
+  position: absolute; bottom: -18px; left: 50%; transform: translateX(-50%);
+  font-size: 8px; color: var(--accent2); white-space: nowrap; display: none;
+}
+.islot:hover .itip { display: block; }
+
+/* 캔버스 */
+#canvas-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+#game-canvas { display: block; border: 2px solid var(--border); background: #06060f; }
+
+/* 넥스트 패널 */
+#next-panel {
+  width: 72px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--panel);
+  border-left: 1px solid var(--border);
+  padding: 8px 4px;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.next-label { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+#next-canvas { background: #1a1a30; border-radius: 6px; border: 1px solid var(--border); }
+
+/* ── 컨트롤 ── */
+#controls {
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  padding: 10px 12px 14px;
+}
+.ctrl-row {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.ctrl-row:last-child { margin-bottom: 0; }
+.cbtn {
+  background: #1a1a30;
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  color: var(--text);
+  font-size: 20px;
+  width: 56px; height: 52px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: background .1s, transform .1s;
+  -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
+}
+.cbtn:active, .cbtn.pressed { background: var(--accent); transform: scale(.92); border-color: var(--accent); }
+#btn-drop {
+  flex: 1; font-size: 14px; font-weight: 700;
+  background: var(--accent); border-color: var(--accent);
+  color: #fff; height: 48px; border-radius: 12px;
+  letter-spacing: .5px;
+}
+#btn-drop:active { background: #cc2244; transform: scale(.96); }
+
+/* ── 오버레이 공통 ── */
+.overlay {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  background: rgba(6,6,15,.92);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+}
+.overlay.show { display: flex; }
+.overlay h1 { font-size: 28px; margin-bottom: 6px; }
+.overlay .sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+.big-btn {
+  display: block; width: 100%; max-width: 240px;
+  padding: 16px;
+  background: var(--accent); color: #fff;
+  border: none; border-radius: 14px;
+  font-size: 18px; font-weight: 700;
+  cursor: pointer; margin: 8px auto;
+  transition: transform .1s, background .1s;
+  text-decoration: none;
+  text-align: center;
+}
+.big-btn:active { transform: scale(.96); }
+.big-btn.secondary {
+  background: var(--panel); border: 1.5px solid var(--border);
+  color: var(--text); font-size: 15px;
+}
+.score-big { font-size: 36px; font-weight: 700; color: var(--accent2); margin: 8px 0 16px; }
+
+/* 시작 화면 두지 */
+#start-duji { width: 100px; height: 130px; margin-bottom: 16px; }
+
+/* 아이템 팝업 */
+#item-popup {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  background: #fff;
+  border: 3px solid var(--accent2);
+  border-radius: 16px;
+  padding: 18px 26px;
+  text-align: center;
+  z-index: 30;
+  transition: transform .25s cubic-bezier(.34,1.56,.64,1);
+  pointer-events: none;
+}
+#item-popup.show { transform: translate(-50%, -50%) scale(1); }
+#item-popup-icon { font-size: 36px; }
+#item-popup-name { font-size: 13px; font-weight: 700; color: #333; margin-top: 4px; }
+
+/* 일시정지 오버레이 */
+#pause-overlay {
+  display: none;
+  position: absolute;
+  inset: 0; z-index: 25;
+  background: rgba(6,6,15,.88);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+#pause-overlay.show { display: flex; }
+#pause-overlay h2 { font-size: 26px; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- 상단 HUD -->
+  <div id="hud">
+    <div class="hud-cell">
+      <span class="hud-label">SCORE</span>
+      <span class="hud-val" id="score-display">0</span>
+    </div>
+    <div class="hud-cell">
+      <span class="hud-label">LEVEL</span>
+      <span class="hud-val" id="level-display">1</span>
+    </div>
+    <div class="hud-cell">
+      <span class="hud-label">LINES</span>
+      <span class="hud-val" id="lines-display">0</span>
+    </div>
+    <button id="hud-pause" onclick="togglePause()">⏸</button>
+  </div>
+
+  <!-- 게임 영역 -->
+  <div id="game-area">
+
+    <!-- 왼쪽: 두지 + 아이템 -->
+    <div id="sidebar">
+      <div id="duji-wrap">
+        <div id="duji-bubble"></div>
+        <svg id="duji-svg" viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg">
+          <defs><style>.c1{fill:#fff}.c1,.c2{stroke:#000;stroke-linecap:round;stroke-linejoin:round;stroke-width:4.16px}.c2{fill:none}</style></defs>
+          <path class="c1" d="M263.28,260.03c-28.43,34.94-41.86,133.55-41.86,133.55l-13.31-18.47-21.14,13.4-6.62-28.92-26.51,10.34,5.51-27.42-21.3-4.35s38.08-79.13,96.09-133.35"/>
+          <path class="c1" d="M233.22,382.47l43.19,57.51c-41.89,52.89-1.22,48.41,26.16,31.28,11.29-7.06,34.35-17.66,13.61-70.26-7.13-18.07-36.94-74.34-36.94-74.34"/>
+          <g>
+            <path class="c1" d="M237.35,197.16s-85.9-43.84-119.64-100.32c-33.74-56.49-13.73-50.63,25.1-41.08,22.57,5.55,67.62,23.57,83.16,15.08,15.53-8.49,130.44-128.5,154.55,95.66l5.22,48.51c3.93,38.66,10.16,146.32-49.98,174.31-26.2,12.19-66.01,10.33-66.01,10.33-32.32.23-52.69-22.22-60.17-31.42-10.18-12.51-24.87-32.35-23.53-72.93,1.35-40.58,54.34-97.17,54.34-97.17"/>
+            <path d="M142.81,55.75s13.8,31.1-25.1,41.08c0,0-54.11-71.55,25.1-41.08Z"/>
+            <path class="c2" d="M326.74,6.32s8.9,15.77-.06,30.45c0,0,19.88-17.6,35.62-11.27"/>
+          </g>
+          <g>
+            <line class="c2" x1="273.45" y1="78.56" x2="271.64" y2="81.49"/>
+            <line class="c2" x1="259" y1="70.92" x2="257.18" y2="73.85"/>
+            <path class="c2" d="M257.18,64.58s1.56,3.26,5.38,3.6"/>
+            <path class="c2" d="M260.78,102.87c3.2,1.06,6.53,2.14,9.88,1.74,3.35-.4,6.73-2.72,7.19-6.06"/>
+            <path class="c2" d="M272.59,71.57c2.75.63,5.8-.26,7.79-2.26"/>
+          </g>
+          <path class="c1" d="M293.2,383.44l27.72,66.37c-53.61,40.96-13.09,46.62,17.66,36.75,12.68-4.07,37.64-8.67,30.47-64.76-2.46-19.26-11.38-60.49-11.38-60.49"/>
+          <path class="c1" d="M320.71,239.36c13.71,42.91-9.77,139.62-9.77,139.62l19.13-12.34,14.79,20.2,16.72-24.51,20.91,19.3,4.88-27.54,21.42,3.72s-6.58-87.57-40.79-159.22"/>
+        </svg>
+      </div>
+      <div id="item-panel">
+        <div class="item-label">아이템</div>
+        <div class="islot" id="isl0" onclick="useItem(0)">—<span class="itip"></span></div>
+        <div class="islot" id="isl1" onclick="useItem(1)">—<span class="itip"></span></div>
+        <div class="islot" id="isl2" onclick="useItem(2)">—<span class="itip"></span></div>
+      </div>
+    </div>
+
+    <!-- 캔버스 -->
+    <div id="canvas-wrap">
+      <canvas id="game-canvas"></canvas>
+      <div id="item-popup"><div id="item-popup-icon"></div><p id="item-popup-name"></p></div>
+
+      <!-- 시작 오버레이 -->
+      <div class="overlay show" id="start-overlay">
+        <svg id="start-duji" viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg">
+          <defs><style>.s1{fill:#fff}.s1,.s2{stroke:#000;stroke-linecap:round;stroke-linejoin:round;stroke-width:4.16px}.s2{fill:none}</style></defs>
+          <path class="s1" d="M263.28,260.03c-28.43,34.94-41.86,133.55-41.86,133.55l-13.31-18.47-21.14,13.4-6.62-28.92-26.51,10.34,5.51-27.42-21.3-4.35s38.08-79.13,96.09-133.35"/>
+          <path class="s1" d="M233.22,382.47l43.19,57.51c-41.89,52.89-1.22,48.41,26.16,31.28,11.29-7.06,34.35-17.66,13.61-70.26-7.13-18.07-36.94-74.34-36.94-74.34"/>
+          <g>
+            <path class="s1" d="M237.35,197.16s-85.9-43.84-119.64-100.32c-33.74-56.49-13.73-50.63,25.1-41.08,22.57,5.55,67.62,23.57,83.16,15.08,15.53-8.49,130.44-128.5,154.55,95.66l5.22,48.51c3.93,38.66,10.16,146.32-49.98,174.31-26.2,12.19-66.01,10.33-66.01,10.33-32.32.23-52.69-22.22-60.17-31.42-10.18-12.51-24.87-32.35-23.53-72.93,1.35-40.58,54.34-97.17,54.34-97.17"/>
+            <path d="M142.81,55.75s13.8,31.1-25.1,41.08c0,0-54.11-71.55,25.1-41.08Z"/>
+            <path class="s2" d="M326.74,6.32s8.9,15.77-.06,30.45c0,0,19.88-17.6,35.62-11.27"/>
+          </g>
+          <g>
+            <line class="s2" x1="273.45" y1="78.56" x2="271.64" y2="81.49"/>
+            <line class="s2" x1="259" y1="70.92" x2="257.18" y2="73.85"/>
+            <path class="s2" d="M257.18,64.58s1.56,3.26,5.38,3.6"/>
+            <path class="s2" d="M260.78,102.87c3.2,1.06,6.53,2.14,9.88,1.74,3.35-.4,6.73-2.72,7.19-6.06"/>
+            <path class="s2" d="M272.59,71.57c2.75.63,5.8-.26,7.79-2.26"/>
+          </g>
+          <path class="s1" d="M293.2,383.44l27.72,66.37c-53.61,40.96-13.09,46.62,17.66,36.75,12.68-4.07,37.64-8.67,30.47-64.76-2.46-19.26-11.38-60.49-11.38-60.49"/>
+          <path class="s1" d="M320.71,239.36c13.71,42.91-9.77,139.62-9.77,139.62l19.13-12.34,14.79,20.2,16.72-24.51,20.91,19.3,4.88-27.54,21.42,3.72s-6.58-87.57-40.79-159.22"/>
+        </svg>
+        <h1 style="color:#ff4d6d;">두지 스트레스<br>박살 테트리스</h1>
+        <p class="sub">레고 블록을 부수고 두지와 함께 스트레스를 날려버려!</p>
+        <button class="big-btn" onclick="startGame()">🎮 게임 시작!</button>
+        <div style="font-size:11px;color:#555;margin-top:12px;line-height:1.8;">
+          💧물풍선 · ⏰시계 · 🧱레고랜드 · 🔥두지의분노
+        </div>
+      </div>
+
+      <!-- 게임오버 오버레이 -->
+      <div class="overlay" id="over-overlay">
+        <div style="font-size:48px;margin-bottom:8px;">😭</div>
+        <h1 style="color:#ff4d6d;">GAME OVER</h1>
+        <p class="sub">두지가 너무 힘들어요...</p>
+        <div class="score-big" id="final-score">0점</div>
+        <a class="big-btn" href="https://festivalplus.mk.co.kr/" target="_blank">🎉 페스티벌플러스 놀러가기!</a>
+        <button class="big-btn secondary" onclick="startGame()">🔄 다시 도전!</button>
+      </div>
+
+      <!-- 일시정지 -->
+      <div id="pause-overlay">
+        <h2>⏸ 일시정지</h2>
+        <button class="big-btn" onclick="togglePause()">▶ 계속하기</button>
+      </div>
+    </div>
+
+    <!-- 오른쪽: 넥스트 -->
+    <div id="next-panel">
+      <span class="next-label">NEXT</span>
+      <canvas id="next-canvas" width="58" height="58"></canvas>
+      <span class="next-label" style="margin-top:8px;">HOLD</span>
+      <canvas id="hold-canvas" width="58" height="58"></canvas>
+    </div>
+  </div>
+
+  <!-- 컨트롤 -->
+  <div id="controls">
+    <div class="ctrl-row">
+      <div class="cbtn" id="btn-rotate">↻</div>
+      <button id="btn-drop" class="cbtn">⚡ 한방에 DROP!</button>
+      <div class="cbtn" id="btn-hold">📦</div>
+    </div>
+    <div class="ctrl-row">
+      <div class="cbtn" id="btn-left">◀</div>
+      <div class="cbtn" id="btn-down">▼</div>
+      <div class="cbtn" id="btn-right">▶</div>
+    </div>
+  </div>
+
+</div>
+<script>
+// ── 상수 ──
+const COLS = 10, ROWS = 20;
+let BS = 28; // block size, 동적 계산
+
+const canvas = document.getElementById('game-canvas');
+const ctx = canvas.getContext('2d');
+const nextCanvas = document.getElementById('next-canvas');
+const nCtx = nextCanvas.getContext('2d');
+const holdCanvas = document.getElementById('hold-canvas');
+const hCtx = holdCanvas.getContext('2d');
+
+function calcSize() {
+  const wrap = document.getElementById('canvas-wrap');
+  const maxW = wrap.clientWidth - 4;
+  const maxH = wrap.clientHeight - 4;
+  BS = Math.floor(Math.min(maxW / COLS, maxH / ROWS));
+  canvas.width = BS * COLS;
+  canvas.height = BS * ROWS;
+}
+
+// ── 테트로미노 ──
+const PIECES = [
+  { shape:[[1,1,1,1]], color:'#00d4ff' },
+  { shape:[[1,1],[1,1]], color:'#ffe600' },
+  { shape:[[0,1,0],[1,1,1]], color:'#c77dff' },
+  { shape:[[1,0,0],[1,1,1]], color:'#ff9f1c' },
+  { shape:[[0,0,1],[1,1,1]], color:'#4cc9f0' },
+  { shape:[[0,1,1],[1,1,0]], color:'#06d6a0' },
+  { shape:[[1,1,0],[0,1,1]], color:'#ff4d6d' },
+];
+
+// ── 아이템 ──
+const ITEMS = [
+  { id:'water', icon:'💧', name:'물풍선', desc:'맨 아래 줄 삭제!', prob:.20 },
+  { id:'clock', icon:'⏰', name:'시계',   desc:'8초간 슬로우~',   prob:.10 },
+  { id:'lego',  icon:'🧱', name:'레고랜드',desc:'아래 절반 박살!', prob:.05 },
+  { id:'rage',  icon:'🔥', name:'두지의 분노',desc:'전체 박살!!', prob:.03 },
+];
+
+// ── 두지 반응 ──
+const REACTIONS = [
+  {t:'야호! 👏',      a:'jump'},  {t:'박살났다! 💥', a:'shake'},
+  {t:'스트레스 해소~',a:'sigh'},  {t:'으랴랴! 💪',  a:'punch'},
+  {t:'두지 최고! ⭐', a:'star'},  {t:'뻥! 터졌다!',  a:'explode'},
+  {t:'ㅋㅋ 박살!',    a:'laugh'}, {t:'한 번 더! 🔥', a:'fire'},
+  {t:'완전 박살! 💣', a:'bomb'},  {t:'두지 신났다!🎉',a:'party'},
+  {t:'없애버렸다! 🗑️',a:'trash'}, {t:'후련해~ 😤',   a:'spin'},
+];
+
+// ── 상태 ──
+let board, current, next, held, canHold;
+let score, lines, level, gameOver, paused;
+let dropInterval, slowMode, lastTime, dropCounter, raf;
+let inventory, speechTimer;
+
+// ── 초기화 ──
+function startGame() {
+  board = Array.from({length:ROWS}, () => Array(COLS).fill(0));
+  score=0; lines=0; level=1; gameOver=false; paused=false;
+  dropInterval=800; slowMode=false; dropCounter=0; lastTime=0;
+  inventory=[null,null,null]; held=null; canHold=true;
+  calcSize();
+  document.getElementById('start-overlay').classList.remove('show');
+  document.getElementById('over-overlay').classList.remove('show');
+  document.getElementById('pause-overlay').classList.remove('show');
+  updateHUD(); updateItemUI();
+  current = mkPiece(); next = mkPiece();
+  drawNext(); drawHold();
+  if(raf) cancelAnimationFrame(raf);
+  lastTime = performance.now();
+  raf = requestAnimationFrame(loop);
+  showBubble('레고 박살내자! 💥'); animDuji('party');
+}
+
+function mkPiece() {
+  const p = PIECES[Math.floor(Math.random()*PIECES.length)];
+  return { shape:p.shape.map(r=>[...r]), color:p.color,
+           x:Math.floor(COLS/2)-Math.floor(p.shape[0].length/2), y:0 };
+}
+
+// ── 충돌 ──
+function hits(piece, dx=0, dy=0, sh=null) {
+  const s = sh || piece.shape;
+  for(let r=0;r<s.length;r++) for(let c=0;c<s[r].length;c++) {
+    if(!s[r][c]) continue;
+    const nx=piece.x+c+dx, ny=piece.y+r+dy;
+    if(nx<0||nx>=COLS||ny>=ROWS) return true;
+    if(ny>=0&&board[ny][nx]) return true;
+  }
+  return false;
+}
+
+function rotate90(s) { return s[0].map((_,i)=>s.map(r=>r[i]).reverse()); }
+
+// ── 이동 ──
+function mLeft()  { if(!hits(current,-1)) current.x--; draw(); }
+function mRight() { if(!hits(current, 1)) current.x++; draw(); }
+function mDown()  {
+  if(!hits(current,0,1)) { current.y++; dropCounter=0; }
+  else lock();
+  draw();
+}
+function mDrop()  { while(!hits(current,0,1)) current.y++; lock(); draw(); }
+function mRotate(){
+  const r=rotate90(current.shape);
+  if(!hits(current,0,0,r)) current.shape=r;
+  else if(!hits(current,1,0,r)){current.shape=r;current.x++;}
+  else if(!hits(current,-1,0,r)){current.shape=r;current.x--;}
+  draw();
+}
+function mHold() {
+  if(!canHold) return;
+  canHold=false;
+  if(held) { const tmp=held; held={shape:current.shape.map(r=>[...r]),color:current.color}; current={...tmp,x:Math.floor(COLS/2)-Math.floor(tmp.shape[0].length/2),y:0}; }
+  else { held={shape:current.shape.map(r=>[...r]),color:current.color}; current=next; next=mkPiece(); drawNext(); }
+  drawHold(); draw();
+}
+
+// ── 고정 ──
+function lock() {
+  for(let r=0;r<current.shape.length;r++) for(let c=0;c<current.shape[r].length;c++) {
+    if(!current.shape[r][c]) continue;
+    const ny=current.y+r;
+    if(ny<0){endGame();return;}
+    board[ny][current.x+c]=current.color;
+  }
+  canHold=true;
+  clearLines();
+  current=next; next=mkPiece(); drawNext();
+  if(hits(current)){endGame();}
+}
+
+function clearLines() {
+  let n=0;
+  for(let r=ROWS-1;r>=0;r--) {
+    if(board[r].every(c=>c!==0)){board.splice(r,1);board.unshift(Array(COLS).fill(0));n++;r++;}
+  }
+  if(n>0){
+    score+=[0,100,300,500,800][n]*level;
+    lines+=n; level=Math.floor(lines/10)+1;
+    dropInterval=slowMode?1400:Math.max(100,800-(level-1)*70);
+    updateHUD();
+    const rx=REACTIONS[Math.floor(Math.random()*REACTIONS.length)];
+    showBubble(rx.t); animDuji(rx.a);
+    tryItemDrop(n);
+  }
+}
+
+function tryItemDrop(n) {
+  for(let i=0;i<n;i++){
+    for(const item of ITEMS){
+      if(Math.random()<item.prob){addItem(item);break;}
+    }
+  }
+}
+
+function addItem(item) {
+  const s=inventory.findIndex(x=>x===null);
+  if(s===-1)return;
+  inventory[s]=item; updateItemUI();
+  const pop=document.getElementById('item-popup');
+  document.getElementById('item-popup-icon').textContent=item.icon;
+  document.getElementById('item-popup-name').textContent=item.name+' 획득!';
+  pop.classList.add('show');
+  setTimeout(()=>pop.classList.remove('show'),1400);
+}
+
+function useItem(i) {
+  const item=inventory[i]; if(!item)return;
+  inventory[i]=null; updateItemUI();
+  if(item.id==='water'){
+    for(let r=ROWS-1;r>=0;r--){if(board[r].some(c=>c!==0)){board.splice(r,1);board.unshift(Array(COLS).fill(0));break;}}
+    showBubble('💧 한 줄 날렸다!'); animDuji('explode');
+  } else if(item.id==='clock'){
+    slowMode=true; dropInterval=1400;
+    showBubble('⏰ 느리게~ 느리게~'); animDuji('sigh');
+    setTimeout(()=>{slowMode=false;dropInterval=Math.max(100,800-(level-1)*70);},8000);
+  } else if(item.id==='lego'){
+    for(let r=Math.floor(ROWS/2);r<ROWS;r++) board[r]=Array(COLS).fill(0);
+    showBubble('🧱 레고랜드 도움!'); animDuji('bomb');
+  } else if(item.id==='rage'){
+    board=Array.from({length:ROWS},()=>Array(COLS).fill(0));
+    showBubble('🔥 두지의 분노!!'); animDuji('fire');
+  }
+  updateHUD(); draw();
+}
+
+// ── 게임오버 ──
+function endGame() {
+  gameOver=true;
+  cancelAnimationFrame(raf);
+  document.getElementById('final-score').textContent=score.toLocaleString()+'점';
+  document.getElementById('over-overlay').classList.add('show');
+}
+
+// ── 그리기 ──
+function legoBlock(c2d, x, y, sz, color) {
+  const p=1;
+  c2d.fillStyle=color;
+  c2d.fillRect(x+p,y+p,sz-p*2,sz-p*2);
+  c2d.fillStyle='rgba(255,255,255,.38)';
+  c2d.fillRect(x+p,y+p,sz-p*2,3);
+  c2d.fillRect(x+p,y+p,3,sz-p*2);
+  c2d.fillStyle='rgba(0,0,0,.32)';
+  c2d.fillRect(x+p,y+sz-p-3,sz-p*2,3);
+  c2d.fillRect(x+sz-p-3,y+p,3,sz-p*2);
+  const cr=sz*.17;
+  c2d.beginPath();c2d.arc(x+sz/2,y+sz/2,cr,0,Math.PI*2);
+  c2d.fillStyle='rgba(255,255,255,.28)';c2d.fill();
+  c2d.strokeStyle='rgba(0,0,0,.35)';c2d.lineWidth=.8;c2d.stroke();
+}
+
+function draw() {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  // grid
+  ctx.strokeStyle='rgba(255,255,255,.04)';ctx.lineWidth=.5;
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) ctx.strokeRect(c*BS,r*BS,BS,BS);
+  // board
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) if(board[r][c]) legoBlock(ctx,c*BS,r*BS,BS,board[r][c]);
+  if(!current)return;
+  // ghost
+  let gy=current.y;
+  while(!hits(current,0,gy-current.y+1)) gy++;
+  ctx.globalAlpha=.18;
+  current.shape.forEach((row,r)=>row.forEach((v,c)=>{if(v)legoBlock(ctx,(current.x+c)*BS,(gy+r)*BS,BS,current.color);}));
+  ctx.globalAlpha=1;
+  // current
+  current.shape.forEach((row,r)=>row.forEach((v,c)=>{if(v)legoBlock(ctx,(current.x+c)*BS,(current.y+r)*BS,BS,current.color);}));
+}
+
+function drawMini(c2d, piece) {
+  c2d.clearRect(0,0,58,58);
+  if(!piece)return;
+  const ns=Math.floor(58/Math.max(piece.shape.length,piece.shape[0].length));
+  const ox=Math.floor((58-piece.shape[0].length*ns)/2);
+  const oy=Math.floor((58-piece.shape.length*ns)/2);
+  piece.shape.forEach((row,r)=>row.forEach((v,c)=>{if(v)legoBlock(c2d,ox+c*ns,oy+r*ns,ns,piece.color);}));
+}
+function drawNext() { drawMini(nCtx,next); }
+function drawHold() { drawMini(hCtx,held?{shape:held.shape,color:held.color}:null); }
+
+// ── HUD ──
+function updateHUD() {
+  document.getElementById('score-display').textContent=score.toLocaleString();
+  document.getElementById('level-display').textContent=level;
+  document.getElementById('lines-display').textContent=lines;
+}
+function updateItemUI() {
+  for(let i=0;i<3;i++){
+    const el=document.getElementById('isl'+i);
+    const item=inventory[i];
+    el.childNodes[0].textContent=item?item.icon:'—';
+    el.querySelector('.itip').textContent=item?item.name:'';
+    el.classList.toggle('active',!!item);
+  }
+}
+
+// ── 두지 ──
+function showBubble(text) {
+  const b=document.getElementById('duji-bubble');
+  b.textContent=text; b.classList.add('show');
+  if(speechTimer)clearTimeout(speechTimer);
+  speechTimer=setTimeout(()=>b.classList.remove('show'),2200);
+}
+function animDuji(anim) {
+  const svg=document.getElementById('duji-svg');
+  const seq={
+    jump: [{t:'translateY(-14px) scale(1.1)',d:130},{t:'translateY(0)',d:130}],
+    shake:[{t:'translateX(-8px)',d:70},{t:'translateX(8px)',d:70},{t:'translateX(-4px)',d:70},{t:'translateX(0)',d:70}],
+    spin: [{t:'rotate(12deg)',d:90},{t:'rotate(-12deg)',d:90},{t:'rotate(0)',d:90}],
+    punch:[{t:'translateX(10px) scale(1.15)',d:90},{t:'translateX(0) scale(1)',d:90}],
+    explode:[{t:'scale(1.35)',d:90},{t:'scale(.88)',d:90},{t:'scale(1)',d:90}],
+    star: [{t:'scale(1.2) rotate(10deg)',d:130},{t:'scale(1) rotate(0)',d:130}],
+    sigh: [{t:'translateY(6px)',d:180},{t:'translateY(0)',d:180}],
+    laugh:[{t:'rotate(-5deg) scale(1.1)',d:90},{t:'rotate(5deg) scale(1.1)',d:90},{t:'rotate(0) scale(1)',d:90}],
+    trash:[{t:'translateY(-5px) rotate(10deg)',d:110},{t:'translateY(0) rotate(0)',d:110}],
+    fire: [{t:'scale(1.28)',d:75},{t:'scale(1)',d:75},{t:'scale(1.18)',d:75},{t:'scale(1)',d:75}],
+    bomb: [{t:'scale(1.4) rotate(4deg)',d:110},{t:'scale(.85) rotate(-4deg)',d:110},{t:'scale(1) rotate(0)',d:110}],
+    party:[{t:'translateY(-10px) rotate(-10deg)',d:90},{t:'translateY(0) rotate(10deg)',d:90},{t:'rotate(0)',d:90}],
+  };
+  const steps=seq[anim]||seq.jump;
+  let i=0;
+  function run(){if(i>=steps.length){svg.style.transform='';return;}svg.style.transform=steps[i].t;setTimeout(run,steps[i].d);i++;}
+  run();
+}
+
+// ── 일시정지 ──
+function togglePause() {
+  if(gameOver)return;
+  paused=!paused;
+  document.getElementById('pause-overlay').classList.toggle('show',paused);
+  document.getElementById('hud-pause').textContent=paused?'▶':'⏸';
+  if(!paused){lastTime=performance.now();raf=requestAnimationFrame(loop);}
+}
+
+// ── 루프 ──
+function loop(time) {
+  if(gameOver||paused)return;
+  const dt=time-lastTime; lastTime=time;
+  dropCounter+=dt;
+  if(dropCounter>dropInterval){mDown();dropCounter=0;}
+  draw();
+  raf=requestAnimationFrame(loop);
+}
+
+// ── 키보드 ──
+document.addEventListener('keydown',e=>{
+  if(gameOver)return;
+  if(e.key==='p'||e.key==='Escape'){togglePause();return;}
+  if(paused)return;
+  ({ArrowLeft:mLeft,ArrowRight:mRight,ArrowDown:mDown,ArrowUp:mRotate,' ':mDrop,'c':mHold,'C':mHold,'z':mHold,'Z':mHold,'1':()=>useItem(0),'2':()=>useItem(1),'3':()=>useItem(2)})[e.key]?.();
+  if(['ArrowLeft','ArrowRight','ArrowDown','ArrowUp',' '].includes(e.key)) e.preventDefault();
+});
+
+// ── 터치 버튼 ──
+function bindBtn(id, fn) {
+  const el=document.getElementById(id);
+  let iv=null;
+  const rep=['btn-left','btn-right','btn-down'].includes(id);
+  const start=(e)=>{e.preventDefault();if(paused||gameOver)return;fn();if(rep)iv=setInterval(()=>{if(!paused&&!gameOver)fn();},100);};
+  const end=()=>{if(iv){clearInterval(iv);iv=null;}};
+  el.addEventListener('touchstart',start,{passive:false});
+  el.addEventListener('touchend',end);
+  el.addEventListener('mousedown',start);
+  el.addEventListener('mouseup',end);
+}
+bindBtn('btn-left',mLeft);
+bindBtn('btn-right',mRight);
+bindBtn('btn-down',mDown);
+bindBtn('btn-rotate',mRotate);
+bindBtn('btn-drop',mDrop);
+bindBtn('btn-hold',mHold);
+
+// 스와이프
+let tx=0,ty=0;
+canvas.addEventListener('touchstart',e=>{tx=e.touches[0].clientX;ty=e.touches[0].clientY;},{passive:true});
+canvas.addEventListener('touchend',e=>{
+  const dx=e.changedTouches[0].clientX-tx, dy=e.changedTouches[0].clientY-ty;
+  if(Math.abs(dx)>40&&Math.abs(dx)>Math.abs(dy)){dx>0?mRight():mLeft();}
+  else if(dy>40){mDrop();}
+  else if(dy<-20){mRotate();}
+  draw();
+},{passive:true});
+
+// 리사이즈
+window.addEventListener('resize',()=>{if(!gameOver){calcSize();draw();}});
+</script>
+</body>
+</html>
